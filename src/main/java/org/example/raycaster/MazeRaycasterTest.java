@@ -1,7 +1,6 @@
 package org.example.raycaster;
 
-import org.example.raycaster.textures.CheckerboardTexture;
-import org.example.raycaster.textures.Texture;
+import org.example.raycaster.textures.*;
 import processing.core.PApplet;
 import processing.event.KeyEvent;
 
@@ -14,6 +13,10 @@ public class MazeRaycasterTest extends PApplet {
     public ButtonKeys buttonKeys = new ButtonKeys();
 
     public Texture floorTexture = new CheckerboardTexture();
+    public Texture ceilingTexture = new WindowTexture();
+    public Texture wallTexture = new BrickTexture();
+
+    public Texture[] allTextures;
 
     //Player coordinates
     float px;
@@ -25,17 +28,7 @@ public class MazeRaycasterTest extends PApplet {
     float angleSpeed = 0.05f;
     float pWallDistance;
 
-    int[] map = {
-            1,1,1,1,1,1,1,1,1,
-            1,0,1,0,0,0,0,0,1,
-            1,0,1,0,0,0,0,0,1,
-            1,0,1,0,0,0,0,0,1,
-            1,0,0,0,0,0,0,0,1,
-            1,0,0,0,0,0,0,0,1,
-            1,0,0,0,1,1,0,0,1,
-            1,0,0,0,1,1,0,0,1,
-            1,1,1,1,1,1,1,1,1
-    };
+    int[] map;
 
     int mapX;
     int mapY;
@@ -45,6 +38,10 @@ public class MazeRaycasterTest extends PApplet {
     int raycasterHeight;
     int raycasterWidth;
     float squareSize;
+    float textureRatio;
+
+    float maxDist = 200.0f;       // distance at which it’s fully dark
+    float minBrightness = 0.2f;   // minimum visible brightness
 
     public static void main(String[] args) {
         PApplet.main("org.example.raycaster.MazeRaycasterTest", args);
@@ -84,7 +81,19 @@ public class MazeRaycasterTest extends PApplet {
         //Represents the size (height and width) of each square in the minimap
         //It's the total space available divided by the number of rows/cols
         squareSize = (float) topViewMapSize / (float) mapY;
+
+        //Distance in front of player for wall collisions
+        //It's equal to 1/3 of the squareSize viewed in the topDownView
         pWallDistance = squareSize/3;
+
+        //How many textures fit in one square.
+        textureRatio = squareSize/32.0f;
+
+        allTextures = new Texture[4];
+        allTextures[0] = new CheckerboardTexture();
+        allTextures[1] = new BrickTexture();
+        allTextures[2] = new WindowTexture();
+        allTextures[3] = new DoorTexture();
     }
 
     @Override
@@ -225,7 +234,7 @@ public class MazeRaycasterTest extends PApplet {
         for (y = 0; y < mapY; y++) {
             for (x = 0; x < mapX; x++) {
 
-                if (map[y*mapX + x] == 1) {
+                if (map[y*mapX + x] > 0) {
                     //black
                     fill(255);
                 } else {
@@ -263,6 +272,12 @@ public class MazeRaycasterTest extends PApplet {
         }
 
         for (r = 0; r < numberOfRays; r++) {
+
+            //Vertical and horizontal map texture number (0 to 3 for 4 textures)
+            int vmt = 0;
+            int hmt = 0;
+            int mt = 0;
+
             //Check horizontal lines
             dof = 0;
             float disH = 10000000;
@@ -298,8 +313,9 @@ public class MazeRaycasterTest extends PApplet {
                 my = (int) Math.floor(ry / squareSize);
                 mp = my * mapX + mx;
 
-                if (mp > 0 && mp < mapX * mapY && map[mp] == 1) {
+                if (mp > 0 && mp < mapX * mapY && map[mp] > 0) {
                     //Wall found
+                    hmt = map[mp] - 1;
                     dof = mapX;
                     hx = rx;
                     hy = ry;
@@ -346,8 +362,9 @@ public class MazeRaycasterTest extends PApplet {
                 my = (int) Math.floor(ry / squareSize);
                 mp = my * mapX + mx;
 
-                if (mp > 0 && mp < mapX * mapY && map[mp] == 1) {
+                if (mp > 0 && mp < mapX * mapY && map[mp] > 0) {
                     //Wall found
+                    vmt = map[mp] - 1;
                     dof = mapX;
                     vx = rx;
                     vy = ry;
@@ -359,10 +376,14 @@ public class MazeRaycasterTest extends PApplet {
                 }
             }
 
+            float shade = 1.0f;
+
             if (disV < disH) {
                 rx = vx;
                 ry = vy;
                 disT = disV;
+                mt = vmt;
+                shade = 0.8f;
                 shadingFactor = disT*0.8f;
                 stroke(255 - shadingFactor, 0, 0);
             }
@@ -371,6 +392,7 @@ public class MazeRaycasterTest extends PApplet {
                 rx = hx;
                 ry = hy;
                 disT = disH;
+                mt = hmt;
                 shadingFactor = disT*0.8f;
                 stroke(180 - shadingFactor, 0, 0);
             }
@@ -392,9 +414,18 @@ public class MazeRaycasterTest extends PApplet {
 
             int height = 512; // altura da janela pequena
 
-            int lineH = (int) (0.6f * (squareSize*height)/disT);
+//            int lineH = (int) (0.6f * (squareSize*height)/disT);
+            int lineH = (int) ((squareSize * height)/disT);
+
+            //The ty_step is the texture size divided by the lineH
+            //This step will be incremented in ty each loop,
+            float ty_step = 32.0f/lineH;
+
+            float ty_off = 0f;
 
             if (lineH > height) {
+                //This is like the part of the wall that is not visible
+                ty_off = (lineH - height)/2.0f;
                 lineH = height;
             }
 
@@ -405,35 +436,105 @@ public class MazeRaycasterTest extends PApplet {
             strokeCap(PROJECT);
 
             //In processing, the line is drawn at the exact position specified,
-            //and the strokeWeight occupies space beggining from the center.
+            //and the strokeWeight occupies space beginning from the center.
             //If the line has X = 50, and strokeWeight = 10,
             //the resulting line will start at X=45 and end at X=55
             float strokeOffset = strokeWeight/2;
 
-//            float ty = 0;
-//            //The ty_step is the texture size divided by the lineH
-//            //This step will be incremented in ty each loop,
-//            //The final ty value will be at most 31.
-//            float ty_step = 32.0f/lineH;
+            //The final ty value will be at most 31.
+            float ty = ty_off * ty_step;
+
+            float tx;
+
+            if (shade == 1) {
+                //Horizontal wall hit
+                tx = (int) (rx/textureRatio) % 32;
+                //Flip if looking down
+                if (ra < PI) {
+                    tx = 31 - tx;
+                }
+
+            } else {
+                //Vertical wall hit
+                tx = (int) (ry/textureRatio) % 32;
+                //Flip if looking left
+                if (ra > HALF_PI && ra < 3*HALF_PI) {
+                    tx = 31 - tx;
+                }
+            }
 
             //Wall as sequence of points starting from lineO to lineH+lineO
-//            for (int y = 0; y < lineH; y++) {
-//                int c = floorTexture.textureMap[((int) ty) * 32];
-//                stroke(c * 255);
-//                point(r*rayWidth + 512 + strokeOffset, y+lineO);
-//                ty += ty_step;
-//            }
+            for (int y = 0; y < lineH; y++) {
+                int c = allTextures[1].textureMap[(int) ty * 32 + (int) tx];
 
-            //Wall in one single line
-            line(r*rayWidth + 512 + strokeOffset, lineO, r*rayWidth + 512 + strokeOffset, lineH+lineO);
+                shade = getShade(disT);
 
-            //Ceiling
-            stroke(80);
-            line(r*rayWidth + 512 + strokeOffset, 0, r*rayWidth + 512 + strokeOffset, lineO);
+                stroke(c * 255 * shade, c * 40 * shade, 0);
 
-            //Floor
-            stroke(40);
-            line(r*rayWidth + 512 + strokeOffset, lineH+lineO, r*rayWidth + 512 + strokeOffset, height);
+                point(r*rayWidth + 512 + strokeOffset, y+lineO);
+                ty += ty_step;
+            }
+
+            //Floor casting
+            for (int y = lineO + lineH; y < height; y++) {
+                // Distance from player to floor point at this pixel row
+                float dy = y - (height / 2.0f); // distance from center screen
+
+                //This is like the "straight distance" to the floor point
+                float rowDistance = (squareSize * height/2.0f) / dy;
+
+                //Corrects the distance considering the angle relative to the player ca = (pa - ra)
+                float d = rowDistance / cos(ca);
+
+                // Calculate world coordinates of the floor point for this pixel
+                float floorX = px + d * cos(ra);
+                float floorY = py + d * sin(ra);
+
+                // Convert world coords to texture coords
+                int texX = ((int)(floorX / textureRatio)) % 32;
+                int texY = ((int)(floorY / textureRatio)) % 32;
+
+                if (texX < 0) texX += 32;
+                if (texY < 0) texY += 32;
+
+                // Get pixel color from floor texture (you can pick which texture to use)
+                int color = floorTexture.textureMap[texY * 32 + texX];
+
+                shade = getShade(d);
+
+                // Optionally darken the floor a bit to give depth
+                stroke(color * 255 * shade, color * 255 * shade, color * 255 * shade);
+
+                // Draw pixel (1 column per ray)
+                point(r*rayWidth + 512 + strokeOffset, y);
+            }
+
+            for (int y = 0; y < lineO; y++) {
+                // Distance from player to ceiling point at this pixel row
+                float dy = (height / 2.0f) - y; // from center screen upwards
+                float rowDistance = (squareSize * height) / (2.0f * dy);
+
+                //Corrects the distance considering the angle relative to the player ca = (pa - ra)
+                float d = rowDistance / cos(ca);
+
+                // World coordinates
+                float ceilingX = px + d * cos(ra);
+                float ceilingY = py + d * sin(ra);
+
+                int texX = ((int)(ceilingX / textureRatio)) % 32;
+                int texY = ((int)(ceilingY / textureRatio)) % 32;
+
+                if (texX < 0) texX += 32;
+                if (texY < 0) texY += 32;
+
+                int color = ceilingTexture.textureMap[texY * 32 + texX]; // You can create a ceiling texture too
+
+                shade = getShade(d);
+
+                stroke(0, 0, color * 255 * shade);
+
+                point(r * rayWidth + 512 + strokeOffset, y);
+            }
 
             ra += DEG_TO_RAD * angleIncrement;
 
@@ -448,5 +549,10 @@ public class MazeRaycasterTest extends PApplet {
 
     float dist(float ax, float ay, float bx, float by, float ang) {
         return sqrt((bx-ax)*(bx-ax) + (by-ay)*(by-ay));
+    }
+
+    float getShade(float disT) {
+        var shade = 1.0f - (disT / maxDist);
+        return max(shade, minBrightness);
     }
 }
