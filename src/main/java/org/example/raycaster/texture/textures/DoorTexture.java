@@ -1,4 +1,6 @@
-package org.example.raycaster.textures;
+package org.example.raycaster.texture.textures;
+
+import org.example.raycaster.texture.Texture;
 
 public class DoorTexture extends Texture {
     public DoorTexture() {
@@ -39,5 +41,8 @@ public class DoorTexture extends Texture {
                 0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,1, 1,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0,
                 0,1,1,1,1,1,1,1, 1,1,1,1,1,1,1,1, 1,1,1,1,1,1,1,1, 1,1,1,1,1,1,1,0,
         };
+        super.r = 0;
+        super.g = 255;
+        super.b = 0;
     }
 }

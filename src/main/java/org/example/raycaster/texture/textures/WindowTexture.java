@@ -1,4 +1,6 @@
-package org.example.raycaster.textures;
+package org.example.raycaster.texture.textures;
+
+import org.example.raycaster.texture.Texture;
 
 public class WindowTexture extends Texture {
     public WindowTexture() {
@@ -39,5 +41,8 @@ public class WindowTexture extends Texture {
                 1,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,1, 1,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,1,
                 1,1,1,1,1,1,1,1, 1,1,1,1,1,1,1,1, 1,1,1,1,1,1,1,1, 1,1,1,1,1,1,1,1,
         };
+        super.r = 0;
+        super.g = 0;
+        super.b = 255;
     }
 }

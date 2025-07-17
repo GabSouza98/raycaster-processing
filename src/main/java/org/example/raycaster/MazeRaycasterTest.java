@@ -1,10 +1,16 @@
 package org.example.raycaster;
 
-import org.example.raycaster.textures.*;
+import org.example.raycaster.texture.Texture;
+import org.example.raycaster.texture.textures.BrickTexture;
+import org.example.raycaster.texture.textures.CheckerboardTexture;
+import org.example.raycaster.texture.textures.DoorTexture;
+import org.example.raycaster.texture.textures.WindowTexture;
 import processing.core.PApplet;
 import processing.event.KeyEvent;
 
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 
 public class MazeRaycasterTest extends PApplet {
 
@@ -18,6 +24,8 @@ public class MazeRaycasterTest extends PApplet {
 
     public Texture[] allTextures;
 
+    List<Light> lights = new ArrayList<>();
+
     //Player coordinates
     float px;
     float py;
@@ -25,6 +33,8 @@ public class MazeRaycasterTest extends PApplet {
     float pdy;
     float pa;
     float pSpeed = 1;
+    float normalSpeed = 1;
+    float runningSpeed = 2;
     float angleSpeed = 0.05f;
     float pWallDistance;
 
@@ -40,8 +50,8 @@ public class MazeRaycasterTest extends PApplet {
     float squareSize;
     float textureRatio;
 
-    float maxDist = 200.0f;       // distance at which it’s fully dark
-    float minBrightness = 0.2f;   // minimum visible brightness
+    float maxDist;
+    float minBrightness = 0.00f;   // minimum visible brightness
 
     public static void main(String[] args) {
         PApplet.main("org.example.raycaster.MazeRaycasterTest", args);
@@ -58,15 +68,15 @@ public class MazeRaycasterTest extends PApplet {
         //Generate bidimensional array maze
         int[][] mapFromMazeGenerator = new MazeGenerator().generateMaze();
 
-        //Creates single dimension array to accommodate all the bidimensional array positions
-        map = new int[mapFromMazeGenerator.length*mapFromMazeGenerator.length];
-
         //Assumes the original is square.
         mapX = mapFromMazeGenerator.length;
-        mapY = mapFromMazeGenerator.length;
+        mapY = mapFromMazeGenerator[0].length;
 
         //This is basically the same as map.length
-        mapS = mapX * mapY;
+        mapS = map.length;
+
+        //Creates single dimension array to accommodate all the bidimensional array positions
+        map = new int[mapFromMazeGenerator.length*mapFromMazeGenerator.length];
 
         //Populates the one-dimensional map
         for (int i = 0; i < mapX; i++) {
@@ -80,7 +90,11 @@ public class MazeRaycasterTest extends PApplet {
 
         //Represents the size (height and width) of each square in the minimap
         //It's the total space available divided by the number of rows/cols
+        //Also represents the distance to the projection plane
         squareSize = (float) topViewMapSize / (float) mapY;
+
+        //Distance at which it’s fully dark
+        maxDist = 5*squareSize;
 
         //Distance in front of player for wall collisions
         //It's equal to 1/3 of the squareSize viewed in the topDownView
@@ -94,6 +108,16 @@ public class MazeRaycasterTest extends PApplet {
         allTextures[1] = new BrickTexture();
         allTextures[2] = new WindowTexture();
         allTextures[3] = new DoorTexture();
+
+        lights.add(new Light(squareSize * 1.5f, squareSize * 1.5f, 1.0f, squareSize)); // player light
+
+        lights.add(new Light(squareSize * 1.5f, squareSize * 3.5f, 1.0f, squareSize));
+        lights.add(new Light(squareSize * 1.5f, squareSize * 5.5f, 1.0f, squareSize));
+        lights.add(new Light(squareSize * 1.5f, squareSize * 7.5f, 1.0f, squareSize));
+
+        lights.add(new Light(squareSize * 3.5f, squareSize * 1.5f, 1.0f, squareSize));
+        lights.add(new Light(squareSize * 5.5f, squareSize * 1.5f, 1.0f, squareSize));
+        lights.add(new Light(squareSize * 7.5f, squareSize * 1.5f, 1.0f, squareSize));
     }
 
     @Override
@@ -123,16 +147,19 @@ public class MazeRaycasterTest extends PApplet {
     public void keyPressed(KeyEvent keyEvent) {
         char key = keyEvent.getKey();
         if (key == 'a') {
-            buttonKeys.a = true;
+            buttonKeys.DOWN = true;
         }
         if (key == 'd') {
-           buttonKeys.d = true;
+           buttonKeys.RIGHT = true;
         }
         if (key == 'w') {
-            buttonKeys.w = true;
+            buttonKeys.UP = true;
         }
         if (key == 's') {
-            buttonKeys.s = true;
+            buttonKeys.LEFT = true;
+        }
+        if (key == '\uFFFF') {
+            buttonKeys.SHIFT = true;
         }
     }
 
@@ -140,21 +167,31 @@ public class MazeRaycasterTest extends PApplet {
     public void keyReleased(KeyEvent keyEvent) {
         char key = keyEvent.getKey();
         if (key == 'a') {
-            buttonKeys.a = false;
+            buttonKeys.DOWN = false;
         }
         if (key == 'd') {
-            buttonKeys.d = false;
+            buttonKeys.RIGHT = false;
         }
         if (key == 'w') {
-            buttonKeys.w = false;
+            buttonKeys.UP = false;
         }
         if (key == 's') {
-            buttonKeys.s = false;
+            buttonKeys.LEFT = false;
+        }
+        if (key == '\uFFFF') {
+            buttonKeys.SHIFT = false;
         }
     }
 
     void updateKeys() {
-        if (buttonKeys.a) {
+        //TODO
+//        if (buttonKeys.SHIFT) {
+//            pSpeed = runningSpeed;
+//        } else {
+//            pSpeed = normalSpeed;
+//        }
+
+        if (buttonKeys.DOWN) {
             pa -= angleSpeed;
             if (pa < 0) {
                 pa += TWO_PI;
@@ -164,7 +201,7 @@ public class MazeRaycasterTest extends PApplet {
             pdy = sin(pa) * pSpeed;
         }
 
-        if (buttonKeys.d) {
+        if (buttonKeys.RIGHT) {
             pa += angleSpeed;
             if (pa > TWO_PI) {
                 pa -= TWO_PI;
@@ -197,7 +234,7 @@ public class MazeRaycasterTest extends PApplet {
         int ipy_add_yo = (int) ((py + yo) / squareSize);
         int ipy_sub_yo = (int) ((py - yo) / squareSize);
 
-        if (buttonKeys.w) {
+        if (buttonKeys.UP) {
             if (map[ipy*mapX + ipx_add_xo] == 0) {
                 px += pdx;
             }
@@ -206,7 +243,7 @@ public class MazeRaycasterTest extends PApplet {
             }
         }
 
-        if (buttonKeys.s) {
+        if (buttonKeys.LEFT) {
             if (map[ipy*mapX + ipx_sub_xo] == 0) {
                 px -= pdx;
             }
@@ -465,11 +502,25 @@ public class MazeRaycasterTest extends PApplet {
 
             //Wall as sequence of points starting from lineO to lineH+lineO
             for (int y = 0; y < lineH; y++) {
-                int c = allTextures[1].textureMap[(int) ty * 32 + (int) tx];
+                int c = wallTexture.textureMap[(int) ty * 32 + (int) tx];
+
+                float light = 0.0f;
+                for (Light l : lights) {
+                    float dx = rx - l.x;
+                    float dy = ry - l.y;
+                    float dist = sqrt(dx * dx + dy * dy);
+                    float contribution = l.intensity * (1.0f - (dist / l.radius));
+                    if (contribution > 0) {
+                        light += contribution;
+                    }
+                }
+                light = constrain(light, 0.2f, 1.0f);
 
                 shade = getShade(disT);
 
-                stroke(c * 255 * shade, c * 40 * shade, 0);
+                stroke(wallTexture.r * c * light,
+                       wallTexture.g * c * light,
+                       wallTexture.b * c * light);
 
                 point(r*rayWidth + 512 + strokeOffset, y+lineO);
                 ty += ty_step;
@@ -486,6 +537,8 @@ public class MazeRaycasterTest extends PApplet {
                 //Corrects the distance considering the angle relative to the player ca = (pa - ra)
                 float d = rowDistance / cos(ca);
 
+                shade = getShade(d);
+
                 // Calculate world coordinates of the floor point for this pixel
                 float floorX = px + d * cos(ra);
                 float floorY = py + d * sin(ra);
@@ -498,12 +551,26 @@ public class MazeRaycasterTest extends PApplet {
                 if (texY < 0) texY += 32;
 
                 // Get pixel color from floor texture (you can pick which texture to use)
-                int color = floorTexture.textureMap[texY * 32 + texX];
+                int c = floorTexture.textureMap[texY * 32 + texX];
 
-                shade = getShade(d);
+                float light = 0.0f;
+
+                for (Light l : lights) {
+                    float dx = floorX - l.x;
+                    float dy2 = floorY - l.y;
+                    float dist = sqrt(dx * dx + dy2 * dy2);
+                    float contribution = l.intensity * (1.0f - (dist / l.radius));
+                    if (contribution > 0) {
+                        light += contribution;
+                    }
+                }
+
+                light = constrain(light, 0.2f, 1.0f); // ambient min brightness
 
                 // Optionally darken the floor a bit to give depth
-                stroke(color * 255 * shade, color * 255 * shade, color * 255 * shade);
+                stroke(floorTexture.r * c * light,
+                       floorTexture.g * c * light,
+                       floorTexture.b * c * light);
 
                 // Draw pixel (1 column per ray)
                 point(r*rayWidth + 512 + strokeOffset, y);
@@ -517,6 +584,8 @@ public class MazeRaycasterTest extends PApplet {
                 //Corrects the distance considering the angle relative to the player ca = (pa - ra)
                 float d = rowDistance / cos(ca);
 
+                shade = getShade(d);
+
                 // World coordinates
                 float ceilingX = px + d * cos(ra);
                 float ceilingY = py + d * sin(ra);
@@ -527,11 +596,11 @@ public class MazeRaycasterTest extends PApplet {
                 if (texX < 0) texX += 32;
                 if (texY < 0) texY += 32;
 
-                int color = ceilingTexture.textureMap[texY * 32 + texX]; // You can create a ceiling texture too
+                int c = ceilingTexture.textureMap[texY * 32 + texX];
 
-                shade = getShade(d);
-
-                stroke(0, 0, color * 255 * shade);
+                stroke(ceilingTexture.r * c * shade,
+                       ceilingTexture.g * c * shade,
+                       ceilingTexture.b * c * shade);
 
                 point(r * rayWidth + 512 + strokeOffset, y);
             }

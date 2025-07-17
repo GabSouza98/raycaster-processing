@@ -64,16 +64,16 @@ public class MazeRaycasterOriginal extends PApplet {
     public void keyPressed(KeyEvent keyEvent) {
         char key = keyEvent.getKey();
         if (key == 'a') {
-            buttonKeys.a = true;
+            buttonKeys.DOWN = true;
         }
         if (key == 'd') {
-           buttonKeys.d = true;
+           buttonKeys.RIGHT = true;
         }
         if (key == 'w') {
-            buttonKeys.w = true;
+            buttonKeys.UP = true;
         }
         if (key == 's') {
-            buttonKeys.s = true;
+            buttonKeys.LEFT = true;
         }
     }
 
@@ -81,21 +81,21 @@ public class MazeRaycasterOriginal extends PApplet {
     public void keyReleased(KeyEvent keyEvent) {
         char key = keyEvent.getKey();
         if (key == 'a') {
-            buttonKeys.a = false;
+            buttonKeys.DOWN = false;
         }
         if (key == 'd') {
-            buttonKeys.d = false;
+            buttonKeys.RIGHT = false;
         }
         if (key == 'w') {
-            buttonKeys.w = false;
+            buttonKeys.UP = false;
         }
         if (key == 's') {
-            buttonKeys.s = false;
+            buttonKeys.LEFT = false;
         }
     }
 
     void updateKeys() {
-        if (buttonKeys.a) {
+        if (buttonKeys.DOWN) {
             pa -= 0.1f;
             if (pa < 0) {
                 pa += TWO_PI;
@@ -105,7 +105,7 @@ public class MazeRaycasterOriginal extends PApplet {
             pdy = sin(pa) * 5;
         }
 
-        if (buttonKeys.d) {
+        if (buttonKeys.RIGHT) {
             pa += 0.1f;
             if (pa > TWO_PI) {
                 pa -= TWO_PI;
@@ -115,12 +115,12 @@ public class MazeRaycasterOriginal extends PApplet {
             pdy = sin(pa) * 5;
         }
 
-        if (buttonKeys.w) {
+        if (buttonKeys.UP) {
             px += pdx;
             py += pdy;
         }
 
-        if (buttonKeys.s) {
+        if (buttonKeys.LEFT) {
             px -= pdx;
             py -= pdy;
         }

@@ -1,4 +1,6 @@
-package org.example.raycaster.textures;
+package org.example.raycaster.texture.textures;
+
+import org.example.raycaster.texture.Texture;
 
 public class BrickTexture extends Texture {
     public BrickTexture() {
@@ -39,5 +41,8 @@ public class BrickTexture extends Texture {
                 0,1,1,1,1,1,1,1, 1,1,1,1,1,1,1,0, 0,1,1,1,1,1,1,1, 1,1,1,1,1,1,1,0,
                 0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0,
         };
+        super.r = 255;
+        super.g = 100;
+        super.b = 0;
     }
 }

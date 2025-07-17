@@ -5,6 +5,7 @@ import java.util.List;
 
 public class MazeGenerator {
 
+    //remover o static
     public static final int height = 400;
     public static final int width = 400;
     public static final int size = 40;
