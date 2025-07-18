@@ -1,6 +1,7 @@
 package org.example.raycaster.levels;
 
 import org.example.raycaster.Light;
+import org.example.raycaster.MazeGenerator;
 import org.example.raycaster.texture.Texture;
 import org.example.raycaster.texture.TextureGenerator;
 
@@ -19,8 +20,8 @@ public class Level {
 
     public List<Light> lights;
 
-    private final int mapX;
-    private final int mapY;
+    public final int mapX;
+    public final int mapY;
 
     /**
      * Must pass the parameters mapX and mapY, because since int[] map is one-dimensional, it's impossible to know
@@ -63,6 +64,18 @@ public class Level {
         this.wallTexture = checkNull(wallTexture);
 
         this.lights = lights;
+    }
+
+    public Level() {
+        int[][] bidimensionalMap = new MazeGenerator().generateMaze();
+
+        this.mapY = bidimensionalMap.length;
+        this.mapX = bidimensionalMap[0].length;
+        this.map = getOneDimensionalMap(bidimensionalMap);
+
+        this.floorTexture = TextureGenerator.getRandomTexture();
+        this.ceilingTexture = TextureGenerator.getRandomTexture();
+        this.wallTexture = TextureGenerator.getRandomTexture();
     }
 
     public int[] getOneDimensionalMap(int[][] mapFromMazeGenerator) {

@@ -1,5 +1,7 @@
 package org.example.raycaster;
 
+import org.example.raycaster.levels.Level;
+import org.example.raycaster.levels.LevelManager;
 import org.example.raycaster.texture.Texture;
 import org.example.raycaster.texture.textures.BrickTexture;
 import org.example.raycaster.texture.textures.CheckerboardTexture;
@@ -10,21 +12,17 @@ import processing.event.KeyEvent;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Iterator;
 import java.util.List;
 
 public class MazeRaycasterTest extends PApplet {
 
     public static PApplet processing;
 
-    public ButtonKeys buttonKeys = new ButtonKeys();
+    private LevelManager levelManager;
+    private Iterator<Level> levelIterator;
 
-    public Texture floorTexture = new CheckerboardTexture();
-    public Texture ceilingTexture = new WindowTexture();
-    public Texture wallTexture = new BrickTexture();
-
-    public Texture[] allTextures;
-
-    List<Light> lights = new ArrayList<>();
+    public final ButtonKeys buttonKeys = new ButtonKeys();
 
     //Player coordinates
     float px;
@@ -32,25 +30,34 @@ public class MazeRaycasterTest extends PApplet {
     float pdx;
     float pdy;
     float pa;
-    float pSpeed = 1;
-    float normalSpeed = 1;
-    float runningSpeed = 2;
     float angleSpeed = 0.05f;
-    float pWallDistance;
 
+    //These come from the Level class
     int[] map;
-
     int mapX;
     int mapY;
     int mapS;
+    Texture floorTexture;
+    Texture ceilingTexture;
+    Texture wallTexture;
+//    List<Light> lights = new ArrayList<>();
 
+    //These are computed after knowing the variables above
+    //The squareSize is determined based on the mapX and mapY
+    float squareSize;
+    //All of these are functions of squareSize
+    float maxDist;
+    float pWallDistance;
+    float textureRatio;
+    float pSpeed; //The bigger the maze, the less the squareSize, the less the speed.
+    float normalSpeed;
+    float runningSpeed;
+
+    //These are defined once in the program, they depend only on the size() args
     int topViewMapSize;
     int raycasterHeight;
     int raycasterWidth;
-    float squareSize;
-    float textureRatio;
 
-    float maxDist;
     float minBrightness = 0.00f;   // minimum visible brightness
 
     public static void main(String[] args) {
@@ -65,63 +72,15 @@ public class MazeRaycasterTest extends PApplet {
         raycasterHeight = height;
         raycasterWidth = width - height; //1112 - 512 = 600
 
-        //Generate bidimensional array maze
-        int[][] mapFromMazeGenerator = new MazeGenerator().generateMaze();
-
-        //Assumes the original is square.
-        mapX = mapFromMazeGenerator.length;
-        mapY = mapFromMazeGenerator[0].length;
-
-        //This is basically the same as map.length
-        mapS = map.length;
-
-        //Creates single dimension array to accommodate all the bidimensional array positions
-        map = new int[mapFromMazeGenerator.length*mapFromMazeGenerator.length];
-
-        //Populates the one-dimensional map
-        for (int i = 0; i < mapX; i++) {
-            for (int j = 0; j < mapY; j++) {
-                map[i*mapX + j] = mapFromMazeGenerator[i][j];
-            }
-        }
-
-        System.out.println("Map one dimensional");
-        System.out.println(Arrays.toString(map));
-
-        //Represents the size (height and width) of each square in the minimap
-        //It's the total space available divided by the number of rows/cols
-        //Also represents the distance to the projection plane
-        squareSize = (float) topViewMapSize / (float) mapY;
-
-        //Distance at which it’s fully dark
-        maxDist = 5*squareSize;
-
-        //Distance in front of player for wall collisions
-        //It's equal to 1/3 of the squareSize viewed in the topDownView
-        pWallDistance = squareSize/3;
-
-        //How many textures fit in one square.
-        textureRatio = squareSize/32.0f;
-
-        allTextures = new Texture[4];
-        allTextures[0] = new CheckerboardTexture();
-        allTextures[1] = new BrickTexture();
-        allTextures[2] = new WindowTexture();
-        allTextures[3] = new DoorTexture();
-
-        lights.add(new Light(squareSize * 1.5f, squareSize * 1.5f, 1.0f, squareSize)); // player light
-
-        lights.add(new Light(squareSize * 1.5f, squareSize * 3.5f, 1.0f, squareSize));
-        lights.add(new Light(squareSize * 1.5f, squareSize * 5.5f, 1.0f, squareSize));
-        lights.add(new Light(squareSize * 1.5f, squareSize * 7.5f, 1.0f, squareSize));
-
-        lights.add(new Light(squareSize * 3.5f, squareSize * 1.5f, 1.0f, squareSize));
-        lights.add(new Light(squareSize * 5.5f, squareSize * 1.5f, 1.0f, squareSize));
-        lights.add(new Light(squareSize * 7.5f, squareSize * 1.5f, 1.0f, squareSize));
+        levelManager = new LevelManager();
+        levelIterator = levelManager.levelList.iterator();
     }
 
     @Override
     public void setup() {
+        //Level setup
+        setupLevel();
+
         background(0);
         //Starts on the map[1][1] position, first available square.
         px = squareSize * 1.5f;
@@ -504,23 +463,24 @@ public class MazeRaycasterTest extends PApplet {
             for (int y = 0; y < lineH; y++) {
                 int c = wallTexture.textureMap[(int) ty * 32 + (int) tx];
 
-                float light = 0.0f;
-                for (Light l : lights) {
-                    float dx = rx - l.x;
-                    float dy = ry - l.y;
-                    float dist = sqrt(dx * dx + dy * dy);
-                    float contribution = l.intensity * (1.0f - (dist / l.radius));
-                    if (contribution > 0) {
-                        light += contribution;
-                    }
-                }
-                light = constrain(light, 0.2f, 1.0f);
+                //Extract method
+//                float light = 0.0f;
+//                for (Light l : lights) {
+//                    float dx = rx - l.x;
+//                    float dy = ry - l.y;
+//                    float dist = sqrt(dx * dx + dy * dy);
+//                    float contribution = l.intensity * (1.0f - (dist / l.radius));
+//                    if (contribution > 0) {
+//                        light += contribution;
+//                    }
+//                }
+//                light = constrain(light, 0.2f, 1.0f);
 
                 shade = getShade(disT);
 
-                stroke(wallTexture.r * c * light,
-                       wallTexture.g * c * light,
-                       wallTexture.b * c * light);
+                stroke(wallTexture.r * c * shade,
+                       wallTexture.g * c * shade,
+                       wallTexture.b * c * shade);
 
                 point(r*rayWidth + 512 + strokeOffset, y+lineO);
                 ty += ty_step;
@@ -553,24 +513,25 @@ public class MazeRaycasterTest extends PApplet {
                 // Get pixel color from floor texture (you can pick which texture to use)
                 int c = floorTexture.textureMap[texY * 32 + texX];
 
-                float light = 0.0f;
+                //Extract method
+//                float light = 0.0f;
+//
+//                for (Light l : lights) {
+//                    float dx = floorX - l.x;
+//                    float dy2 = floorY - l.y;
+//                    float dist = sqrt(dx * dx + dy2 * dy2);
+//                    float contribution = l.intensity * (1.0f - (dist / l.radius));
+//                    if (contribution > 0) {
+//                        light += contribution;
+//                    }
+//                }
 
-                for (Light l : lights) {
-                    float dx = floorX - l.x;
-                    float dy2 = floorY - l.y;
-                    float dist = sqrt(dx * dx + dy2 * dy2);
-                    float contribution = l.intensity * (1.0f - (dist / l.radius));
-                    if (contribution > 0) {
-                        light += contribution;
-                    }
-                }
-
-                light = constrain(light, 0.2f, 1.0f); // ambient min brightness
+//                light = constrain(light, 0.2f, 1.0f); // ambient min brightness
 
                 // Optionally darken the floor a bit to give depth
-                stroke(floorTexture.r * c * light,
-                       floorTexture.g * c * light,
-                       floorTexture.b * c * light);
+                stroke(floorTexture.r * c * shade,
+                       floorTexture.g * c * shade,
+                       floorTexture.b * c * shade);
 
                 // Draw pixel (1 column per ray)
                 point(r*rayWidth + 512 + strokeOffset, y);
@@ -623,5 +584,56 @@ public class MazeRaycasterTest extends PApplet {
     float getShade(float disT) {
         var shade = 1.0f - (disT / maxDist);
         return max(shade, minBrightness);
+    }
+
+    public void setupLevel() {
+        Level currentLevel;
+        if (levelIterator.hasNext()) {
+            currentLevel = levelIterator.next();
+
+            mapX = currentLevel.mapX;
+            mapY = currentLevel.mapY;
+            map = currentLevel.map;
+
+            //This is basically the same as map.length
+            mapS = mapX * mapY;
+
+            System.out.println("Map one dimensional");
+            System.out.println(Arrays.toString(map));
+
+            //Represents the size (height and width) of each square in the minimap
+            //It's the total space available divided by the number of rows/cols
+            //Also represents the distance to the projection plane
+            squareSize = (float) topViewMapSize / (float) mapY;
+
+            //Distance at which it’s fully dark
+            maxDist = 5*squareSize;
+
+            //Distance in front of player for wall collisions
+            //It's equal to 1/3 of the squareSize viewed in the topDownView
+            pWallDistance = squareSize/3;
+
+            //How many textures fit in one square.
+            textureRatio = squareSize/32.0f;
+
+            //The player movement speed.
+            pSpeed = squareSize / 20;
+            normalSpeed = pSpeed;
+            runningSpeed = pSpeed * 2.0f;
+
+            ceilingTexture = currentLevel.ceilingTexture;
+            floorTexture = currentLevel.floorTexture;
+            wallTexture = currentLevel.wallTexture;
+
+//        lights.add(new Light(squareSize * 1.5f, squareSize * 1.5f, 1.0f, squareSize)); // player light
+//        lights.add(new Light(squareSize * 1.5f, squareSize * 3.5f, 1.0f, squareSize));
+//        lights.add(new Light(squareSize * 1.5f, squareSize * 5.5f, 1.0f, squareSize));
+//        lights.add(new Light(squareSize * 1.5f, squareSize * 7.5f, 1.0f, squareSize));
+//        lights.add(new Light(squareSize * 3.5f, squareSize * 1.5f, 1.0f, squareSize));
+//        lights.add(new Light(squareSize * 5.5f, squareSize * 1.5f, 1.0f, squareSize));
+//        lights.add(new Light(squareSize * 7.5f, squareSize * 1.5f, 1.0f, squareSize));
+        } else {
+            System.out.println("Game Finished");
+        }
     }
 }
