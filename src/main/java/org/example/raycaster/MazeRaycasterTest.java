@@ -12,10 +12,9 @@ import processing.core.PApplet;
 import processing.event.KeyEvent;
 import processing.event.MouseEvent;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Iterator;
-import java.util.List;
+import java.util.*;
+
+import static java.util.Objects.nonNull;
 
 public class MazeRaycasterTest extends PApplet {
 
@@ -90,6 +89,7 @@ public class MazeRaycasterTest extends PApplet {
 
     @Override
     public void draw() {
+        noCursor();
         background(0);
         updateKeys();
         drawMap2D();
@@ -337,7 +337,7 @@ public class MazeRaycasterTest extends PApplet {
                     dof = mapX;
                     hx = rx;
                     hy = ry;
-                    disH = dist(px, py, hx, hy, ra);
+                    disH = dist(px, py, hx, hy);
                 } else {
                     rx += xo;
                     ry += yo;
@@ -386,7 +386,7 @@ public class MazeRaycasterTest extends PApplet {
                     dof = mapX;
                     vx = rx;
                     vy = ry;
-                    disV = dist(px, py, vx, vy, ra);
+                    disV = dist(px, py, vx, vy);
                 } else {
                     rx += xo;
                     ry += yo;
@@ -466,7 +466,8 @@ public class MazeRaycasterTest extends PApplet {
 
             if (shade == 1) {
                 //Horizontal wall hit
-                tx = (int) (rx/textureRatio) % 32;
+//                tx = (int) (rx/textureRatio) % 32;
+                    tx = (int) (rx/textureRatio) & 31;
                 //Flip if looking down
                 if (ra < PI) {
                     tx = 31 - tx;
@@ -474,7 +475,8 @@ public class MazeRaycasterTest extends PApplet {
 
             } else {
                 //Vertical wall hit
-                tx = (int) (ry/textureRatio) % 32;
+//                tx = (int) (ry/textureRatio) % 32;
+                    tx = (int) (ry/textureRatio) & 31;
                 //Flip if looking left
                 if (ra > HALF_PI && ra < 3*HALF_PI) {
                     tx = 31 - tx;
@@ -485,138 +487,36 @@ public class MazeRaycasterTest extends PApplet {
             for (int y = 0; y < lineH; y++) {
                 int c = wallTexture.textureMap[(int) ty * 32 + (int) tx];
 
-//                Extract method
-                float light = 0.0f;
-                for (Light l : lights) {
-                    float dx = rx - l.x;
-                    float dy = ry - l.y;
-                    float dist = sqrt(dx * dx + dy * dy);
-                    float contribution = l.intensity * (1.0f - (dist / l.radius));
-                    if (contribution > 0) {
-                        light += contribution;
-                    }
-                }
-                light = constrain(light, 0.2f, 1.0f);
+                float light = getLight(rx, ry);
 
                 shade = getShade(disT);
 
-                stroke(wallTexture.r * c * shade,
-                       wallTexture.g * c * shade,
-                       wallTexture.b * c * shade);
+               float finalShade = shade * light;
+                finalShade = constrain(finalShade, 0.0f, 1.0f);
+
+                stroke(wallTexture.r * c * light,
+                       wallTexture.g * c * light,
+                       wallTexture.b * c * light);
 
                 point(r*rayWidth + 512 + strokeOffset, y+lineO);
                 ty += ty_step;
             }
 
-//            //Floor casting
-//            for (int y = lineO + lineH; y < height; y++) {
-//                // Distance from player to floor point at this pixel row
-//                float dy = y - (height / 2.0f); // distance from center screen
-//
-//                //This is like the "straight distance" to the floor point
-//                float rowDistance = (squareSize * height/2.0f) / dy;
-//
-//                //Corrects the distance considering the angle relative to the player ca = (pa - ra)
-//                float d = rowDistance / cos(ca);
-//
-//                shade = getShade(d);
-//
-//                // Calculate world coordinates of the floor point for this pixel
-//                float floorX = px + d * cos(ra);
-//                float floorY = py + d * sin(ra);
-//
-//                // Convert world coords to texture coords
-//                int texX = ((int)(floorX / textureRatio)) % 32;
-//                int texY = ((int)(floorY / textureRatio)) % 32;
-//
-//                if (texX < 0) texX += 32;
-//                if (texY < 0) texY += 32;
-//
-//                // Get pixel color from floor texture (you can pick which texture to use)
-//                int c = floorTexture.textureMap[texY * 32 + texX];
-//
-//                //Extract method
-//                float light = 0.0f;
-//
-//                for (Light l : lights) {
-//                    float dx = floorX - l.x;
-//                    float dy2 = floorY - l.y;
-//                    float dist = sqrt(dx * dx + dy2 * dy2);
-//                    float contribution = l.intensity * (1.0f - (dist / l.radius));
-//                    if (contribution > 0) {
-//                        light += contribution;
-//                    }
-//                }
-//
-//                light = constrain(light, 0.2f, 1.0f); // ambient min brightness
-//
-//                // Optionally darken the floor a bit to give depth
-//                stroke(floorTexture.r * c * shade,
-//                       floorTexture.g * c * shade,
-//                       floorTexture.b * c * shade);
-//
-//                // Draw pixel (1 column per ray)
-//                point(r*rayWidth + 512 + strokeOffset, y);
-//            }
-//
-//            //Ceiling casting
-//            for (int y = 0; y < lineO; y++) {
-//                // Distance from player to ceiling point at this pixel row
-//                float dy = (height / 2.0f) - y; // from center screen upwards
-//                float rowDistance = (squareSize * height) / (2.0f * dy);
-//                float rowDistance = (squareSize * height/2.0f) / dy;
-//
-//                //Corrects the distance considering the angle relative to the player ca = (pa - ra)
-//                float d = rowDistance / cos(ca);
-//
-//                shade = getShade(d);
-//
-//                // World coordinates
-//                float ceilingX = px + d * cos(ra);
-//                float ceilingY = py + d * sin(ra);
-//
-//                int texX = ((int)(ceilingX / textureRatio)) % 32;
-//                int texY = ((int)(ceilingY / textureRatio)) % 32;
-//
-//                if (texX < 0) texX += 32;
-//                if (texY < 0) texY += 32;
-//
-//                int c = ceilingTexture.textureMap[texY * 32 + texX];
-//
-//                //Extract method
-//                float light = 0.0f;
-//
-//                for (Light l : lights) {
-//                    float dx = ceilingX - l.x;
-//                    float dy2 = ceilingY - l.y;
-//                    float dist = sqrt(dx * dx + dy2 * dy2);
-//                    float contribution = l.intensity * (1.0f - (dist / l.radius));
-//                    if (contribution > 0) {
-//                        light += contribution;
-//                    }
-//                }
-//
-//                light = constrain(light, 0.2f, 1.0f); // ambient min brightness
-//
-//                // Combine both
-////                float finalShade = distShade * lightShade;
-////                finalShade = constrain(finalShade, 0.1f, 1.0f);
-//
-//                stroke(ceilingTexture.r * c * shade,
-//                       ceilingTexture.g * c * shade,
-//                       ceilingTexture.b * c * shade);
-//
-//                point(r * rayWidth + 512 + strokeOffset, y);
-//            }
-
             //Ceiling and floor casting
+            float halfHeight = height / 2.0f;
+
+            //Equation: dy / (h/2) = squareSize / rowDistance
+            //rowDistance = squareSize * (h/2) / dy
+            //rowDistance = constant / dy
+            float constant = squareSize * halfHeight;
+
             for (int y = 0; y < lineO; y++) {
                 // Distance from player to ceiling point at this pixel row
-                float dyCeiling = (height / 2.0f) - y; // from center screen upwards
-                float dyFloor = y - (height / 2.0f) + lineH + lineO;
+                float dyCeiling = halfHeight - y; // from center screen upwards
+                float dyFloor = y - halfHeight + lineH + lineO;
 
-                float rowDistanceCeiling = (squareSize * height) / (2.0f * dyCeiling);
-                float rowDistanceFloor = (squareSize * height/2.0f) / dyFloor;
+                float rowDistanceCeiling = constant / dyCeiling;
+                float rowDistanceFloor = constant / dyFloor;
 
                 //Corrects the distance considering the angle relative to the player ca = (pa - ra)
                 float dCeiling = rowDistanceCeiling / cos(ca);
@@ -632,51 +532,36 @@ public class MazeRaycasterTest extends PApplet {
                 float floorX = px + dFloor * cos(ra);
                 float floorY = py + dFloor * sin(ra);
 
-                int texX = ((int)(ceilingX / textureRatio)) % 32;
-                int texY = ((int)(ceilingY / textureRatio)) % 32;
+                int texX = ((int)(ceilingX / textureRatio)) & 31;
+                int texY = ((int)(ceilingY / textureRatio)) & 31;
 
                 if (texX < 0) texX += 32;
                 if (texY < 0) texY += 32;
 
                 int c = ceilingTexture.textureMap[texY * 32 + texX];
 
-                //Extract method
-//                float light = 0.0f;
-//
-//                for (Light l : lights) {
-//                    float dx = ceilingX - l.x;
-//                    float dy2 = ceilingY - l.y;
-//                    float dist = sqrt(dx * dx + dy2 * dy2);
-//                    float contribution = l.intensity * (1.0f - (dist / l.radius));
-//                    if (contribution > 0) {
-//                        light += contribution;
-//                    }
-//                }
-//
-//                light = constrain(light, 0.2f, 1.0f); // ambient min brightness
+                float light = getLight(ceilingX, ceilingY);
 
-                // Combine both
-//                float finalShade = distShade * lightShade;
-//                finalShade = constrain(finalShade, 0.1f, 1.0f);
-
-                stroke(ceilingTexture.r * c * shadeCeiling,
-                        ceilingTexture.g * c * shadeCeiling,
-                        ceilingTexture.b * c * shadeCeiling);
+                stroke(ceilingTexture.r * c * light,
+                        ceilingTexture.g * c * light,
+                        ceilingTexture.b * c * light);
 
                 point(r * rayWidth + 512 + strokeOffset, y);
 
                 // Convert world coords to texture coords
-                texX = ((int)(floorX / textureRatio)) % 32;
-                texY = ((int)(floorY / textureRatio)) % 32;
+                texX = ((int)(floorX / textureRatio)) & 31;
+                texY = ((int)(floorY / textureRatio)) & 31;
 
                 if (texX < 0) texX += 32;
                 if (texY < 0) texY += 32;
 
                 c = floorTexture.textureMap[texY * 32 + texX];
 
-                stroke(floorTexture.r * c * shadeFloor,
-                       floorTexture.g * c * shadeFloor,
-                       floorTexture.b * c * shadeFloor);
+                light = getLight(floorX, floorY);
+
+                stroke(floorTexture.r * c * light,
+                       floorTexture.g * c * light,
+                       floorTexture.b * c * light);
 
                 point(r * rayWidth + 512 + strokeOffset, y + lineH + lineO);
             }
@@ -692,8 +577,20 @@ public class MazeRaycasterTest extends PApplet {
         }
     }
 
-    float dist(float ax, float ay, float bx, float by, float ang) {
-        return sqrt((bx-ax)*(bx-ax) + (by-ay)*(by-ay));
+    private float getLight(float ceilingX, float ceilingY) {
+        float light = 0.0f;
+        for (Light l : lights) {
+            float dx = ceilingX - l.x;
+            float dy2 = ceilingY - l.y;
+            float dist = sqrt(dx * dx + dy2 * dy2);
+            float contribution = l.intensity * (1.0f - (dist / l.radius));
+            if (contribution > 0) {
+                light += contribution;
+            }
+        }
+
+        light = constrain(light, 0.2f, 1.0f); // ambient min brightness
+        return light;
     }
 
     float getShade(float disT) {
@@ -726,7 +623,7 @@ public class MazeRaycasterTest extends PApplet {
             squareSize = (float) topViewMapSize / (float) mapY;
 
             //Distance at which it’s fully dark
-            maxDist = 5*squareSize;
+            maxDist = 8*squareSize;
 
             //Distance in front of player for wall collisions
             //It's equal to 1/3 of the squareSize viewed in the topDownView
@@ -740,14 +637,15 @@ public class MazeRaycasterTest extends PApplet {
             normalSpeed = pSpeed;
             runningSpeed = pSpeed * 2.0f;
 
-            lights = new ArrayList<>();
-//            lights.add(new Light(squareSize * 1.5f, squareSize * 1.5f, 1.0f, squareSize));
-//            lights.add(new Light(squareSize * 1.5f, squareSize * 3.5f, 1.0f, squareSize));
-//            lights.add(new Light(squareSize * 1.5f, squareSize * 5.5f, 1.0f, squareSize));
-//            lights.add(new Light(squareSize * 1.5f, squareSize * 7.5f, 1.0f, squareSize));
-//            lights.add(new Light(squareSize * 3.5f, squareSize * 1.5f, 1.0f, squareSize));
-//            lights.add(new Light(squareSize * 5.5f, squareSize * 1.5f, 1.0f, squareSize));
-//            lights.add(new Light(squareSize * 7.5f, squareSize * 1.5f, 1.0f, squareSize));
+            float halfSquareSize = 0.5f * squareSize;
+
+            if (nonNull(lights) && !lights.isEmpty()) {
+                lights.forEach(light -> {
+                    light.y = (light.i * squareSize) + halfSquareSize;
+                    light.x = (light.j * squareSize) + halfSquareSize;
+                    light.radius = light.radius * squareSize;
+                });
+            }
 
             //Starts on the map[1][1] position, first available square.
             px = squareSize * 1.5f;

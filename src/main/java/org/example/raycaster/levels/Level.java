@@ -1,12 +1,13 @@
 package org.example.raycaster.levels;
 
+import org.example.maze_generator.Block;
 import org.example.raycaster.Light;
 import org.example.raycaster.MazeGenerator;
 import org.example.raycaster.texture.Texture;
 import org.example.raycaster.texture.TextureGenerator;
 
+import java.util.ArrayList;
 import java.util.List;
-import java.util.Objects;
 
 import static java.util.Objects.nonNull;
 
@@ -76,6 +77,90 @@ public class Level {
         this.floorTexture = TextureGenerator.getRandomTexture();
         this.ceilingTexture = TextureGenerator.getRandomTexture();
         this.wallTexture = TextureGenerator.getRandomTexture();
+
+        this.lights = getLights(bidimensionalMap);
+    }
+
+    public List<Light> getLights(int[][] bidimensionalMap) {
+
+        List<Light> lights = new ArrayList<>();
+
+        //Populates the one-dimensional map
+        for (int i = 0; i < mapY; i++) {
+            for (int j = 0; j < mapX; j++) {
+                int current = bidimensionalMap[i][j];
+
+                if (current > 0) {
+                    continue;
+                }
+
+                if (current == 0) {
+                    //Check if has 3 intersection at least.
+                    //
+                    //    VALID   VALID   INVAL   INVAL
+                    //    1 0 1   1 0 1   1 0 1   1 0 1
+                    //    1 0 0   0 0 0   1 0 0   1 0 1
+                    //    1 0 1   1 0 1   1 1 1   1 0 1
+                    //
+                    int bot = existsPos(i+1, j) ?   bidimensionalMap[i+1][j] : 1;
+                    int up  = existsPos(i-1, j) ?   bidimensionalMap[i-1][j] : 1;
+                    int right = existsPos(i, j+1) ? bidimensionalMap[i][j+1] : 1;
+                    int left = existsPos(i, j-1) ?  bidimensionalMap[i][j-1] : 1;
+
+                    if (bot + up + right + left <= 1) {
+                        //Intersection of 3 hallways
+                        lights.add(new Light(i, j, 1.0f, 1.5f));
+                        continue;
+                    }
+
+                    //Checks for changes in direction
+                    //
+                    //    VALID   VALID   VALID   VALID
+                    //    1 1 1   1 1 1   1 0 1   1 0 1
+                    //    1 0 0   0 0 1   0 0 1   1 0 0
+                    //    1 0 1   1 0 1   1 1 1   1 1 1
+                    //
+                    if ((bot == 0 && right == 0) || (bot == 0 && left == 0) || (up == 0 && right == 0) || (up == 0 && left == 0)) {
+                        lights.add(new Light(i, j, 1.0f, 1.5f));
+                    }
+                }
+            }
+        }
+
+        // S = start
+        // E = exit
+        // XXXXXXX
+        // XS    X
+        // X     X
+        // X    EX
+        // XXXXXXX
+
+        //Player spawn position
+        lights.add(new Light(1, 1, 1.0f, 1.0f, 255, 255, 0));
+
+        //Exit position
+        lights.add(new Light(mapY - 2, mapX - 2, 1.0f, 1.0f));
+
+        return lights;
+    }
+
+    public boolean existsPos(int i, int j) {
+        if (i < 0) {
+            return false;
+        }
+
+        if (j < 0) {
+            return false;
+        }
+
+        if (i >= mapY) {
+            return false;
+        }
+
+        if (j >= mapX) {
+            return false;
+        }
+        return true;
     }
 
     public int[] getOneDimensionalMap(int[][] mapFromMazeGenerator) {
@@ -85,7 +170,7 @@ public class Level {
         //Populates the one-dimensional map
         for (int i = 0; i < mapY; i++) {
             for (int j = 0; j < mapX; j++) {
-                map[i*mapY + j] = mapFromMazeGenerator[i][j];
+                map[i * mapY + j] = mapFromMazeGenerator[i][j];
             }
         }
 
