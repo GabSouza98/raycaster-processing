@@ -26,7 +26,7 @@ public class Level {
 
     /**
      * Must pass the parameters mapX and mapY, because since int[] map is one-dimensional, it's impossible to know
-     * how many columns each row have.
+     * how many columns each row has.
      *
      * @param map
      * @param mapX
@@ -78,50 +78,50 @@ public class Level {
         this.ceilingTexture = TextureGenerator.getRandomTexture();
         this.wallTexture = TextureGenerator.getRandomTexture();
 
-        this.lights = getLights(bidimensionalMap);
+//        this.lights = getLights(bidimensionalMap);
+        this.lights = new ArrayList<>();
     }
 
     public List<Light> getLights(int[][] bidimensionalMap) {
 
         List<Light> lights = new ArrayList<>();
 
-        //Populates the one-dimensional map
+
         for (int i = 0; i < mapY; i++) {
             for (int j = 0; j < mapX; j++) {
                 int current = bidimensionalMap[i][j];
 
                 if (current > 0) {
+                    //It's a wall block
                     continue;
                 }
 
                 if (current == 0) {
-                    //Check if has 3 intersection at least.
+                    //Check if it has 3 intersection at least.
                     //
-                    //    VALID   VALID   INVAL   INVAL
-                    //    1 0 1   1 0 1   1 0 1   1 0 1
-                    //    1 0 0   0 0 0   1 0 0   1 0 1
+                    //    1 0 1   1 0 1   1 0 1   1 1 1
+                    //    1 0 0   0 0 1   0 0 0   0 0 0
                     //    1 0 1   1 0 1   1 1 1   1 0 1
                     //
-                    int bot = existsPos(i+1, j) ?   bidimensionalMap[i+1][j] : 1;
-                    int up  = existsPos(i-1, j) ?   bidimensionalMap[i-1][j] : 1;
+                    int bot   = existsPos(i+1, j) ? bidimensionalMap[i+1][j] : 1;
+                    int up    = existsPos(i-1, j) ? bidimensionalMap[i-1][j] : 1;
                     int right = existsPos(i, j+1) ? bidimensionalMap[i][j+1] : 1;
-                    int left = existsPos(i, j-1) ?  bidimensionalMap[i][j-1] : 1;
+                    int left  = existsPos(i, j-1) ? bidimensionalMap[i][j-1] : 1;
 
                     if (bot + up + right + left <= 1) {
                         //Intersection of 3 hallways
-                        lights.add(new Light(i, j, 1.0f, 1.5f));
+                        lights.add(new Light(i, j, 1.0f, 1.2f, 255, 255, 0));
                         continue;
                     }
 
                     //Checks for changes in direction
                     //
-                    //    VALID   VALID   VALID   VALID
                     //    1 1 1   1 1 1   1 0 1   1 0 1
                     //    1 0 0   0 0 1   0 0 1   1 0 0
                     //    1 0 1   1 0 1   1 1 1   1 1 1
                     //
                     if ((bot == 0 && right == 0) || (bot == 0 && left == 0) || (up == 0 && right == 0) || (up == 0 && left == 0)) {
-                        lights.add(new Light(i, j, 1.0f, 1.5f));
+                        lights.add(new Light(i, j, 1.0f, 1.2f, 255, 255, 0));
                     }
                 }
             }
@@ -136,10 +136,10 @@ public class Level {
         // XXXXXXX
 
         //Player spawn position
-        lights.add(new Light(1, 1, 1.0f, 1.0f, 255, 255, 0));
+        lights.add(new Light(1, 1, 2.0f, 1.2f, 255, 0, 0));
 
         //Exit position
-        lights.add(new Light(mapY - 2, mapX - 2, 1.0f, 1.0f));
+        lights.add(new Light(mapY - 2, mapX - 2, 1.0f, 1.2f, 0, 255, 0));
 
         return lights;
     }

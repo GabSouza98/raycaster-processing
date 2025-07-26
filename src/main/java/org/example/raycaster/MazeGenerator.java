@@ -8,7 +8,7 @@ public class MazeGenerator {
     //remover o static
     public static final int height = 400;
     public static final int width = 400;
-    public static final int size = 100;
+    public static final int size = 40;
 
     public static Block[][] blocks;
 
