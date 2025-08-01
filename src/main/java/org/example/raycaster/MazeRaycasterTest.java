@@ -10,8 +10,14 @@ import processing.core.PVector;
 import processing.event.KeyEvent;
 import processing.event.MouseEvent;
 
+import processing.sound.AudioIn;
+import processing.sound.BeatDetector;
+import processing.sound.FFT;
+import processing.sound.SoundFile;
+
 import java.util.*;
 import java.util.List;
+import java.util.stream.Collectors;
 
 import static java.util.Objects.nonNull;
 
@@ -33,6 +39,7 @@ public class MazeRaycasterTest extends PApplet {
     float pa;
     float angleSpeed = 0.05f;
     float mouseHorizontalSpeed = 0.01f;
+    float mouseVerticalSpeed = 5.0f;
 
     //These come from the Level class
     int[] map;
@@ -67,10 +74,21 @@ public class MazeRaycasterTest extends PApplet {
     float cameraSpeedY = 10.0f; // adjust to taste
     float centerY;
 
-    float distShadeFactor = 0.8f;
+    float distShadeFactor = 1.0f;
     float lightShadeFactor = 0.8f;
+    float soundShadeFactor;
+
+    float aspectRatio = 1.0f;
+
+    float dummy = 0.01f;
 
     Button button1;
+
+    SoundFile theme;
+    BeatDetector beatDetector;
+    FFT fft;
+    int bands = 256;
+    float[] spectrum = new float[bands];
 
     public static void main(String[] args) {
         PApplet.main("org.example.raycaster.MazeRaycasterTest", args);
@@ -81,6 +99,16 @@ public class MazeRaycasterTest extends PApplet {
         size(1112, 512); //width is 512 for the MapView + 600 for the raycaster view
         centerY = height/2.0f + cameraYOffset;
         processing = this;
+
+        theme = new SoundFile(this, "HushHushJustifyMyLove.mp3");
+        theme.loop();
+
+//        beatDetector = new BeatDetector(this);
+//        beatDetector.sensitivity(3000);
+//        beatDetector.input(theme);
+
+        fft = new FFT(this, bands);
+        fft.input(theme);
 
         gameState = GameState.INITIALIZING;
 
@@ -98,15 +126,30 @@ public class MazeRaycasterTest extends PApplet {
         //Level setup
         setupLevel();
 
-        String[] fontList = PFont.list();
-        printArray(fontList);
+//        String[] fontList = PFont.list();
+//        printArray(fontList);
 
         background(0);
         gameState = GameState.TITLE_SCREEN;
+        theme.loop();
     }
 
     @Override
     public void draw() {
+        fft.analyze(spectrum);
+
+//        float sum = 0.0f;
+//        for (float num : spectrum) {
+//            sum += num;
+//        }
+//        soundShadeFactor = sum*0.5f;
+
+//        for(int i = 0; i < bands; i++){
+//            // The result of the FFT is normalized
+//            // draw the line for frequency band i scaling it up by 5 to get more amplitude.
+//            line(i, height, i, height - spectrum[i]*height*5 );
+//        }
+
         switch (gameState) {
             case TITLE_SCREEN:
                 background(0);
@@ -122,6 +165,8 @@ public class MazeRaycasterTest extends PApplet {
                 drawPlayer();
                 drawRays2D();
                 checkWin();
+//                aspectRatio = 0.5f + abs(sin(dummy));
+//                dummy += 0.005f;
                 break;
             case FINISHED:
                 System.out.println("You win!");
@@ -143,6 +188,7 @@ public class MazeRaycasterTest extends PApplet {
     @Override
     public void mouseMoved(MouseEvent event) {
         int dx = mouseX - pmouseX;
+        int dy = mouseY - pmouseY;
 
         if (dx != 0) {
             if (dx > 0) {
@@ -163,6 +209,16 @@ public class MazeRaycasterTest extends PApplet {
 
                 pdx = cos(pa) * pSpeed;
                 pdy = sin(pa) * pSpeed;
+            }
+        }
+
+        if (dy != 0) {
+            if (dy > 0) {
+                cameraYOffset -= mouseVerticalSpeed;
+            }
+
+            if (dy < 0) {
+                cameraYOffset += mouseVerticalSpeed;
             }
         }
     }
@@ -245,12 +301,10 @@ public class MazeRaycasterTest extends PApplet {
 
         if (buttonKeys.LOOK_UP) {
             cameraYOffset += cameraSpeedY;
-            System.out.println(cameraYOffset);
         }
 
         if (buttonKeys.LOOK_DOWN) {
             cameraYOffset -= cameraSpeedY;
-            System.out.println(cameraYOffset);
         }
 
         if (buttonKeys.LEFT) {
@@ -511,24 +565,29 @@ public class MazeRaycasterTest extends PApplet {
 
             disT = disT * cos(ca); //Fix fish eye
 
-//            int lineH = (int) (0.6f * (squareSize*height)/disT);
-            int lineH = (int) ((squareSize * height)/disT);
+            int lineH = (int) ((aspectRatio * squareSize * height)/disT);
+            int originalLineH = lineH;
 
             //The ty_step is the texture size divided by the lineH
             //This step will be incremented in ty each loop,
             float ty_step = 32.0f/lineH;
 
-            float ty_off = 0f;
+            float ty_off;
 
-            if (lineH > height) {
-                //This is like the part of the wall that is not visible
-                ty_off = (lineH - height)/2.0f;
-                lineH = height;
-            }
-
-//            int lineO = (height - lineH) /2; //Line offset
             centerY = height/2.0f + cameraYOffset;
-            int lineO = (int) (centerY - lineH/2.0f);
+
+            int originalLineO = (int) (centerY - originalLineH/2.0f);
+
+//            if (lineH > height) {
+//                //This is like the part of the wall that is not visible
+////                ty_off = (lineH - height)/2.0f;
+//                lineH = height;
+//            } else {
+//                ty_off = 0.0f;
+//            }
+
+            centerY = height/2.0f + cameraYOffset;
+//            int lineO = (int) (centerY - lineH/2.0f);
 
             float strokeWeight = rayWidth;
             strokeWeight(strokeWeight);
@@ -541,13 +600,13 @@ public class MazeRaycasterTest extends PApplet {
             float strokeOffset = strokeWeight/2;
 
             //The final ty value will be at most 31.
-            float ty = ty_off * ty_step;
+//            float ty = ty_off * ty_step;
+            float ty;
 
             float tx;
 
             if (shade == 1) {
                 //Horizontal wall hit
-//                tx = (int) (rx/textureRatio) % 32;
                     tx = (int) (rx/textureRatio) & 31;
                 //Flip if looking down
                 if (ra < PI) {
@@ -556,7 +615,6 @@ public class MazeRaycasterTest extends PApplet {
 
             } else {
                 //Vertical wall hit
-//                tx = (int) (ry/textureRatio) % 32;
                     tx = (int) (ry/textureRatio) & 31;
                 //Flip if looking left
                 if (ra > HALF_PI && ra < 3*HALF_PI) {
@@ -564,73 +622,168 @@ public class MazeRaycasterTest extends PApplet {
                 }
             }
 
-            //Wall as sequence of points starting from lineO to lineH+lineO
-            for (int y = 0; y < lineH; y++) {
+            //WORKING GOOOOOOOOOOOOD BABY
+            int drawStart = -originalLineH/2 + height/2 + (int)cameraYOffset;
+            if(drawStart < 0) drawStart = 0;
+            int drawEnd = originalLineH/2 + height/2 + (int)cameraYOffset;
+            if(drawEnd >= height) drawEnd = height - 1;
+
+            ty_step = 32.0f/originalLineH;
+            float texPos = ((drawStart - cameraYOffset - height/2.0f + originalLineH/2.0f) * ty_step);
+
+            for (int y = drawStart; y < drawEnd; y++) {
+                ty = (int) texPos & 31;
                 int c = wallTexture.textureMap[(int) ty * 32 + (int) tx];
 
-//                PVector light = getRGBLight(rx, ry);
                 float light = getSingleColorLight(rx, ry);
                 shade = getShade(disT);
-
-//                float shadeR = c * (wallTexture.r*shade + light.x) / 2.0f;
-//                float shadeG = c * (wallTexture.g*shade + light.y) / 2.0f;
-//                float shadeB = c * (wallTexture.b*shade + light.z) / 2.0f;
-
-//                float shadeR = c * shade * (wallTexture.r + light.x) / 2.0f;
-//                float shadeG = c * shade * (wallTexture.g + light.y) / 2.0f;
-//                float shadeB = c * shade * (wallTexture.b + light.z) / 2.0f;
-//
-//                stroke(constrain(shadeR, 0, 255),
-//                       constrain(shadeG, 0, 255),
-//                       constrain(shadeB, 0, 255));
-
-                //only lights and ambient color
-//                stroke(wallTexture.r * c * light,
-//                       wallTexture.g * c * light,
-//                       wallTexture.b * c * light);
 
                 float finalShade = (distShadeFactor*shade + lightShadeFactor*light);
                 finalShade = constrain(finalShade, shade, 1.0f);
 
-                //only distance shading
                 stroke(wallTexture.r * c * finalShade,
-                       wallTexture.g * c * finalShade,
-                       wallTexture.b * c * finalShade);
+                        wallTexture.g * c * finalShade,
+                        wallTexture.b * c * finalShade);
+                point(r * rayWidth + 512 + strokeOffset, y);
 
-                point(r*rayWidth + 512 + strokeOffset, y+lineO);
-                ty += ty_step;
+                texPos += ty_step;
             }
 
-            //Ceiling and floor casting
-            float halfHeight = height / 2.0f;
+            //original code
+//            for (int y = lineO; y < lineO+lineH; y++) {
+//                int c = wallTexture.textureMap[(int) ty * 32 + (int) tx];
+//
+//                float light = getSingleColorLight(rx, ry);
+//                shade = getShade(disT);
+//
+//                float finalShade = (distShadeFactor*shade + lightShadeFactor*light);
+//                finalShade = constrain(finalShade, shade, 1.0f);
+//
+//                stroke(wallTexture.r * c * finalShade,
+//                        wallTexture.g * c * finalShade,
+//                        wallTexture.b * c * finalShade);
+//                point(r * rayWidth + 512 + strokeOffset, y);
+//
+//                ty += ty_step;
+//            }
+
+            //Walls painted inverted!!
+//            for (int y = originalLineO; y < originalLineO + originalLineH; y++) {
+//
+//                float dy = abs(centerY - y); // from center screen upwards
+//
+//                float rowDistance = squareSize * centerY / dy;
+//
+//                //Corrects the distance considering the angle relative to the player ca = (pa - ra)
+//                float dWall = rowDistance / cos(ca);
+//                float shadeWall = getShade(dWall);
+//
+//                // World coordinates
+//                float wallX = px + dWall * cos(ra);
+//                float wallY = py + dWall * sin(ra);
+//
+//                int texX = ((int)(wallX / textureRatio)) & 31;
+//                int texY = ((int)(wallY / textureRatio)) & 31;
+//
+//                if (texX < 0) texX += 32;
+//                if (texY < 0) texY += 32;
+//
+//                int c = wallTexture.textureMap[texY * 32 + texX];
+//
+//                float light = getSingleColorLight(wallX, wallY);
+//
+//                float finalShade = (distShadeFactor*shadeWall + lightShadeFactor*light);
+//                finalShade = constrain(finalShade, shadeWall, 1.0f);
+//
+//                stroke(wallTexture.r * c * finalShade,
+//                       wallTexture.g * c * finalShade,
+//                       wallTexture.b * c * finalShade);
+//
+//                point(r * rayWidth + 512 + strokeOffset, y);
+//            }
 
             //Equation: dy / (h/2) = squareSize / rowDistance
             //rowDistance = squareSize * (h/2) / dy
             //rowDistance = constant / dy
-            float constant = squareSize * height/2.0f;
+            float constant = aspectRatio * squareSize * height/2.0f;
 
-            for (int y = 0; y < lineO; y++) {
+            //ORIGINAL FLOOR AND CEILING WITHOUT Y SHEARING
+//            for (int y = 0; y < lineO; y++) {
+//                // Distance from player to ceiling point at this pixel row
+//                float dyCeiling = centerY - y; // from center screen upwards
+//                float dyFloor = y - centerY + lineH + lineO;
+//
+//                float rowDistanceCeiling = constant / dyCeiling;
+//                float rowDistanceFloor = constant / dyFloor;
+//
+//                //Corrects the distance considering the angle relative to the player ca = (pa - ra)
+//                float dCeiling = rowDistanceCeiling / cos(ca);
+//                float dFloor = rowDistanceFloor / cos(ca);
+//
+//                float shadeCeiling = getShade(dCeiling);
+//                float shadeFloor = getShade(dFloor);
+//
+//                // World coordinates
+//                float ceilingX = px + dCeiling * cos(ra);
+//                float ceilingY = py + dCeiling * sin(ra);
+//
+//                float floorX = px + dFloor * cos(ra);
+//                float floorY = py + dFloor * sin(ra);
+//
+//                int texX = ((int)(ceilingX / textureRatio)) & 31;
+//                int texY = ((int)(ceilingY / textureRatio)) & 31;
+//
+//                if (texX < 0) texX += 32;
+//                if (texY < 0) texY += 32;
+//
+//                int c = ceilingTexture.textureMap[texY * 32 + texX];
+//
+//                float light = getSingleColorLight(ceilingX, ceilingY);
+//
+//                float finalShade = (distShadeFactor*shadeCeiling + lightShadeFactor*light);
+//                finalShade = constrain(finalShade, shadeCeiling, 1.0f);
+//
+//                stroke(ceilingTexture.r * c * finalShade,
+//                        ceilingTexture.g * c * finalShade,
+//                        ceilingTexture.b * c * finalShade);
+//
+//                point(r * rayWidth + 512 + strokeOffset, y);
+//
+//                // Convert world coords to texture coords
+//                texX = ((int)(floorX / textureRatio)) & 31;
+//                texY = ((int)(floorY / textureRatio)) & 31;
+//
+//                if (texX < 0) texX += 32;
+//                if (texY < 0) texY += 32;
+//
+//                c = floorTexture.textureMap[texY * 32 + texX];
+//
+//                light = getSingleColorLight(floorX, floorY);
+//
+//                finalShade = (distShadeFactor*shadeFloor + lightShadeFactor*light);
+//                finalShade = constrain(finalShade, shadeFloor, 1.0f);
+//
+//                stroke(floorTexture.r * c * finalShade,
+//                       floorTexture.g * c * finalShade,
+//                       floorTexture.b * c * finalShade);
+//
+//                point(r * rayWidth + 512 + strokeOffset, y + lineH + lineO);
+//            }
+
+            //Floor and ceiling casting for Y-shearing
+            for (int y = 0; y < originalLineO; y++) {
                 // Distance from player to ceiling point at this pixel row
                 float dyCeiling = centerY - y; // from center screen upwards
-                float dyFloor = y - centerY + lineH + lineO;
-//                float dyFloor = y - centerY;
 
                 float rowDistanceCeiling = constant / dyCeiling;
-                float rowDistanceFloor = constant / dyFloor;
 
                 //Corrects the distance considering the angle relative to the player ca = (pa - ra)
                 float dCeiling = rowDistanceCeiling / cos(ca);
-                float dFloor = rowDistanceFloor / cos(ca);
-
                 float shadeCeiling = getShade(dCeiling);
-                float shadeFloor = getShade(dFloor);
 
                 // World coordinates
                 float ceilingX = px + dCeiling * cos(ra);
                 float ceilingY = py + dCeiling * sin(ra);
-
-                float floorX = px + dFloor * cos(ra);
-                float floorY = py + dFloor * sin(ra);
 
                 int texX = ((int)(ceilingX / textureRatio)) & 31;
                 int texY = ((int)(ceilingY / textureRatio)) & 31;
@@ -650,28 +803,40 @@ public class MazeRaycasterTest extends PApplet {
                         ceilingTexture.b * c * finalShade);
 
                 point(r * rayWidth + 512 + strokeOffset, y);
+            }
 
-                // Convert world coords to texture coords
-                texX = ((int)(floorX / textureRatio)) & 31;
-                texY = ((int)(floorY / textureRatio)) & 31;
+            for (int y = originalLineO + originalLineH; y < height; y++) {
+                // Distance from player to ceiling point at this pixel row
+                float dyFloor = y - centerY;
+
+                float rowDistanceFloor = constant / dyFloor;
+
+                //Corrects the distance considering the angle relative to the player ca = (pa - ra)
+                float dFloor = rowDistanceFloor / cos(ca);
+                float shadeFloor = getShade(dFloor);
+
+                // World coordinates
+                float floorX = px + dFloor * cos(ra);
+                float floorY = py + dFloor * sin(ra);
+
+                int texX = ((int)(floorX / textureRatio)) & 31;
+                int texY = ((int)(floorY / textureRatio)) & 31;
 
                 if (texX < 0) texX += 32;
                 if (texY < 0) texY += 32;
 
-                c = floorTexture.textureMap[texY * 32 + texX];
+                int c = floorTexture.textureMap[texY * 32 + texX];
 
-                light = getSingleColorLight(floorX, floorY);
+                float light = getSingleColorLight(floorX, floorY);
 
-                finalShade = (distShadeFactor*shadeFloor + lightShadeFactor*light);
+                float finalShade = (distShadeFactor*shadeFloor + lightShadeFactor*light);
                 finalShade = constrain(finalShade, shadeFloor, 1.0f);
 
                 stroke(floorTexture.r * c * finalShade,
-                       floorTexture.g * c * finalShade,
-                       floorTexture.b * c * finalShade);
+                        floorTexture.g * c * finalShade,
+                        floorTexture.b * c * finalShade);
 
-                point(r * rayWidth + 512 + strokeOffset, y + lineH + lineO);
-//                int yFloor = height - y - 1;
-//                point(r * rayWidth + 512 + strokeOffset, yFloor);
+                point(r * rayWidth + 512 + strokeOffset, y);
             }
 
             ra += DEG_TO_RAD * angleIncrement;
