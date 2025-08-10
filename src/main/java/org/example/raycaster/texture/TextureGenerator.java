@@ -11,12 +11,12 @@ public class TextureGenerator {
     public static Texture[] allTextures = new Texture[] {
             new BrickTexture(),
             new CheckerboardTexture(),
-            new DoorTexture(),
+//            new DoorTexture(),
             new HeartTexture(),
             new NoiseTexture(),
-            new WavyTexture(),
+//            new WavyTexture(),
             new WindowTexture(),
-            new SolidTexture()
+//            new SolidTexture()
     };
 
     public static Texture getRandomTexture() {

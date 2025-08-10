@@ -3,6 +3,8 @@ package org.example.raycaster.levels;
 import org.example.maze_generator.Block;
 import org.example.raycaster.Light;
 import org.example.raycaster.MazeGenerator;
+import org.example.raycaster.songs.Song;
+import org.example.raycaster.songs.SoundManager;
 import org.example.raycaster.texture.Texture;
 import org.example.raycaster.texture.TextureGenerator;
 
@@ -20,6 +22,7 @@ public class Level {
     public Texture wallTexture;
 
     public List<Light> lights;
+    public Song song;
 
     public final int mapX;
     public final int mapY;
@@ -67,7 +70,7 @@ public class Level {
         this.lights = lights;
     }
 
-    public Level() {
+    public Level(boolean lights, int i) {
         int[][] bidimensionalMap = new MazeGenerator().generateMaze();
 
         this.mapY = bidimensionalMap.length;
@@ -78,8 +81,14 @@ public class Level {
         this.ceilingTexture = TextureGenerator.getRandomTexture();
         this.wallTexture = TextureGenerator.getRandomTexture();
 
-//        this.lights = getLights(bidimensionalMap);
+        this.song = SoundManager.getSong(i);
+
         this.lights = new ArrayList<>();
+
+        if (lights) {
+            this.lights = getLights(bidimensionalMap);
+        }
+
     }
 
     public List<Light> getLights(int[][] bidimensionalMap) {

@@ -11,13 +11,13 @@ public class LevelManager {
         this.levelList = levelList;
     }
 
-    public LevelManager() {
-        generateRandomLevels();
+    public LevelManager(boolean lights) {
+        generateRandomLevels(lights);
     }
 
-    public void generateRandomLevels() {
+    public void generateRandomLevels(boolean lights) {
         for (int i = 0; i < 2; i++) {
-            levelList.add(new Level());
+            levelList.add(new Level(lights, i));
         }
     }
 }
