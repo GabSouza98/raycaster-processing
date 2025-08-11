@@ -71,7 +71,9 @@ public class Level {
     }
 
     public Level(boolean lights, int i) {
-        int[][] bidimensionalMap = new MazeGenerator().generateMaze();
+        var sizes = MazeGeneratorSize.getSizes(i);
+        var mazeGenerator = new MazeGenerator(sizes.height, sizes.width, sizes.size);
+        int[][] bidimensionalMap = mazeGenerator.generateMaze();
 
         this.mapY = bidimensionalMap.length;
         this.mapX = bidimensionalMap[0].length;

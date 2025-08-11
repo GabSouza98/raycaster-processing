@@ -1,12 +1,9 @@
 package org.example.raycaster;
 
-import processing.core.PApplet;
-
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
-import static org.example.raycaster.MazeGenerator.*;
 import static org.example.raycaster.MazeRaycasterTest.processing;
 
 public class Block {
@@ -14,6 +11,10 @@ public class Block {
     //in pixels coordinates
     int x;
     int y;
+
+    //Index coordinates -> number of rows and cols
+    public int rows;
+    public int cols;
 
     //index coordinates
     int thisRow;
@@ -30,14 +31,20 @@ public class Block {
     //Neighbours
     List<Block> neighbours = new ArrayList<>();
 
-    public Block(int row, int col) {
+    public Block(int row, int col, int rows, int cols, int size) {
+        //World space coordinates
         this.x = col * size;
         this.y = row * size;
+
+        this.rows = rows;
+        this.cols = cols;
+
+        //Indexes
         this.thisRow = row;
         this.thisCol = col;
     }
 
-    void addNeighbours() {
+    void addNeighbours(Block[][] blocks) {
         if (thisRow > 0) {
             neighbours.add(blocks[thisRow - 1][thisCol]);
         }

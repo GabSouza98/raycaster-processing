@@ -1,5 +1,6 @@
 package org.example.raycaster;
 
+import org.example.raycaster.levels.CustomLevelGenerator;
 import org.example.raycaster.levels.Level;
 import org.example.raycaster.levels.LevelManager;
 import org.example.raycaster.texture.Texture;
@@ -419,8 +420,9 @@ public class MazeRaycasterTest extends PApplet {
         float shadingFactor;
 
         int fov = 60;
-        int numberOfRays = 2*fov;
-        float angleIncrement = 0.5f;
+        int resolution = 2;
+        int numberOfRays = resolution*fov;
+        float angleIncrement = (float) fov / (float) numberOfRays;
         int rayWidth = raycasterWidth / numberOfRays;
 
         ra = pa - ((float) fov /2) * DEG_TO_RAD;
@@ -615,9 +617,9 @@ public class MazeRaycasterTest extends PApplet {
             }
 
             int drawStart = -originalLineH/2 + height/2 + (int)cameraYOffset;
-            if(drawStart < 0) drawStart = 0;
+            if (drawStart < 0) drawStart = 0;
             int drawEnd = originalLineH/2 + height/2 + (int)cameraYOffset;
-            if(drawEnd >= height) drawEnd = height - 1;
+            if (drawEnd >= height) drawEnd = height - 1;
 
             //The ty_step is the texture size divided by the lineH
             //This step will be incremented in ty each loop,
@@ -636,8 +638,8 @@ public class MazeRaycasterTest extends PApplet {
                 finalShade = constrain(finalShade, shade, 1.0f);
 
                 stroke(wallTexture.r * c * finalShade,
-                        wallTexture.g * c * finalShade,
-                        wallTexture.b * c * finalShade);
+                       wallTexture.g * c * finalShade,
+                       wallTexture.b * c * finalShade);
                 point(r * rayWidth + strokeOffset, y);
 
                 texPos += ty_step;
@@ -676,8 +678,8 @@ public class MazeRaycasterTest extends PApplet {
                 finalShade = constrain(finalShade, shadeCeiling, 1.0f);
 
                 stroke(ceilingTexture.r * c * finalShade,
-                        ceilingTexture.g * c * finalShade,
-                        ceilingTexture.b * c * finalShade);
+                       ceilingTexture.g * c * finalShade,
+                       ceilingTexture.b * c * finalShade);
 
                 point(r * rayWidth + strokeOffset, y);
             }
@@ -710,8 +712,8 @@ public class MazeRaycasterTest extends PApplet {
                 finalShade = constrain(finalShade, shadeFloor, 1.0f);
 
                 stroke(floorTexture.r * c * finalShade,
-                        floorTexture.g * c * finalShade,
-                        floorTexture.b * c * finalShade);
+                       floorTexture.g * c * finalShade,
+                       floorTexture.b * c * finalShade);
 
                 point(r * rayWidth + strokeOffset, y);
             }

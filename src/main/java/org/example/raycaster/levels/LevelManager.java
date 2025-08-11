@@ -16,7 +16,7 @@ public class LevelManager {
     }
 
     public void generateRandomLevels(boolean lights) {
-        for (int i = 0; i < 2; i++) {
+        for (int i = 1; i <= 5; i++) {
             levelList.add(new Level(lights, i));
         }
     }

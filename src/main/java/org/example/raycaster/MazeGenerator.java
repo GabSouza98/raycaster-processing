@@ -5,15 +5,12 @@ import java.util.List;
 
 public class MazeGenerator {
 
-    //remover o static
-    public static final int height = 400;
-    public static final int width = 400;
-    public static final int size = 100;
-
-    public static Block[][] blocks;
-
-    public static int rows;
-    public static int cols;
+    public final int height;
+    public final int width;
+    public final int size;
+    public final int rows;
+    public final int cols;
+    public final Block[][] blocks;
 
     Block current;
     Block next;
@@ -21,22 +18,38 @@ public class MazeGenerator {
     boolean isMazeFinished = false;
     List<Block> stack = new ArrayList<>();
 
-    public int[][] generateMaze() {
-        rows = height / size;
-        cols = width / size;
-        blocks = new Block[rows][cols];
+    public MazeGenerator() {
+        this.height = 400;
+        this.width = 400;
+        this.size = 100;
 
+        this.rows = height / size;
+        this.cols = width / size;
+        this.blocks = new Block[rows][cols];
+    }
+
+    public MazeGenerator(int height, int width, int size) {
+        this.height = height;
+        this.width = width;
+        this.size = size;
+
+        this.rows = height / size;
+        this.cols = width / size;
+        this.blocks = new Block[rows][cols];
+    }
+
+    public int[][] generateMaze() {
         //Create the blocks for the maze
         for (int i = 0; i < rows; i++) {
             for (int j = 0; j < cols; j++) {
-                blocks[i][j] = new Block(i, j);
+                blocks[i][j] = new Block(i, j, rows, cols, size);
             }
         }
 
         //Adds the neighbours to each block
         for (int i = 0; i < rows; i++) {
             for (int j = 0; j < cols; j++) {
-                blocks[i][j].addNeighbours();
+                blocks[i][j].addNeighbours(blocks);
             }
         }
 
